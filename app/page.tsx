@@ -41,7 +41,7 @@ export default function Home() {
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center mb-16">
-            <Link href="/app">
+            <Link href="/classifer">
               <Button size="lg" className="bg-primary text-primary-foreground hover:bg-primary/90 gap-2">
                 Launch App <ArrowRight className="w-4 h-4" />
               </Button>
