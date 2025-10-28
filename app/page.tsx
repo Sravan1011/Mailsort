@@ -1,8 +1,35 @@
+'use client';
+
 import { Button } from "@/components/ui/button"
-import { ArrowRight, Mail, Zap, Shield, Brain } from "lucide-react"
+import { ArrowRight, Mail, Zap, Shield, Brain, Loader2, User, ChevronDown } from "lucide-react"
 import Link from "next/link"
+import { useAuth } from "@/contexts/auth-context";
+import { useState, useRef, useEffect } from 'react';
 
 export default function Home() {
+  const { user, signInWithGoogle, signOut, loading } = useAuth();
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  
+  const getUserInitials = (name?: string, email?: string) => {
+    if (name) return name.split(' ').map(n => n[0]).join('').toUpperCase();
+    if (email) return email[0].toUpperCase();
+    return <User className="h-4 w-4" />;
+  };
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       {/* Navigation */}
@@ -13,13 +40,73 @@ export default function Home() {
               <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-lg flex items-center justify-center">
                 <Mail className="w-5 h-5 text-white" />
               </div>
-              <span className="font-bold text-lg">MailSort</span>
+              <Link href="/" className="font-bold text-lg hover:opacity-80 transition-opacity">MailSort</Link>
             </div>
             <div className="flex items-center gap-3">
-              <Button variant="ghost">Sign In</Button>
               <Link href="/classifer">
-                <Button className="bg-primary text-primary-foreground hover:bg-primary/90">Start Building</Button>
+                <Button 
+                  variant="outline"
+                  className="border-border hover:bg-muted"
+                  disabled={!user && !loading}
+                >
+                  Start Building
+                </Button>
               </Link>
+              
+              {loading ? (
+                <Button variant="ghost" size="icon" disabled>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                </Button>
+              ) : user ? (
+                <div className="relative" ref={dropdownRef}>
+                  <Button 
+                    variant="ghost" 
+                    className="flex items-center gap-1 h-10 px-3"
+                    onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                  >
+                    <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center">
+                      {getUserInitials(user.user_metadata?.name, user.email)}
+                    </div>
+                    <ChevronDown className={`h-4 w-4 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
+                  </Button>
+                  
+                  {isDropdownOpen && (
+                    <div className="absolute right-0 mt-2 w-56 rounded-md shadow-lg bg-popover border border-border overflow-hidden z-50">
+                      <div className="p-4 border-b border-border">
+                        <p className="text-sm font-medium">
+                          {user.user_metadata?.name || 'User'}
+                        </p>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {user.email}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => {
+                          signOut();
+                          setIsDropdownOpen(false);
+                        }}
+                        className="w-full text-left px-4 py-2 text-sm hover:bg-accent transition-colors"
+                      >
+                        Sign out
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <Button 
+                  variant="default"
+                  onClick={signInWithGoogle}
+                  className="gap-2"
+                >
+                  <svg className="w-4 h-4" viewBox="0 0 24 24">
+                    <path
+                      d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                      fill="currentColor"
+                    />
+                  </svg>
+                  Sign In with Google
+                </Button>
+              )}
             </div>
           </div>
         </div>
