@@ -1,10 +1,11 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState } from 'react';
-import { createClient } from '@/utils/supabase/client';
+import { Session, User as SupabaseUser } from '@supabase/supabase-js';
+import { createClient } from '@supabase/supabase-js';
 import { useRouter } from 'next/navigation';
 
-type User = {
+type AppUser = {
   id: string;
   email?: string;
   user_metadata?: {
@@ -14,27 +15,32 @@ type User = {
 };
 
 type AuthContextType = {
-  user: User | null;
-  signInWithGoogle: () => Promise<void>;
-  signInWithEmail: (email: string, password: string) => Promise<{ error: Error | null }>;
-  signUpWithEmail: (email: string, password: string) => Promise<{ error: Error | null }>;
-  signOut: () => Promise<void>;
+  user: AppUser | null;
+  session: Session | null;
   loading: boolean;
-  error: string | null;
+  signInWithGoogle: () => Promise<void>;
+  signInWithEmail: (email: string, password: string) => Promise<void>;
+  signUpWithEmail: (email: string, password: string) => Promise<void>;
+  signOut: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<AppUser | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const supabase = createClient();
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
   const router = useRouter();
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event: string, session: Session | null) => {
       setUser(session?.user ?? null);
+      setSession(session);
       setLoading(false);
     });
 
@@ -45,7 +51,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signInWithGoogle = async () => {
     try {
-      setError(null);
+      setLoading(true);
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
@@ -58,13 +64,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
 
       if (error) throw error;
-    } catch (error: any) {
-      setError(error.message || 'Failed to sign in with Google');
+    } catch (error) {
       console.error('Error signing in with Google:', error);
+      throw error;
+    } finally {
+      setLoading(false);
     }
   };
 
-  const signInWithEmail = async (email: string, password: string) => {
+  const signInWithEmail = async (email: string, password: string): Promise<void> => {
     try {
       setError(null);
       const { error } = await supabase.auth.signInWithPassword({
@@ -73,15 +81,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
 
       if (error) throw error;
-      return { error: null };
     } catch (error: any) {
       const errorMessage = error.message || 'Failed to sign in';
       setError(errorMessage);
-      return { error: new Error(errorMessage) };
+      throw error;
     }
   };
 
-  const signUpWithEmail = async (email: string, password: string) => {
+  const signUpWithEmail = async (email: string, password: string): Promise<void> => {
     try {
       setError(null);
       const { error } = await supabase.auth.signUp({
@@ -93,11 +100,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
 
       if (error) throw error;
-      return { error: null };
     } catch (error: any) {
       const errorMessage = error.message || 'Failed to create account';
       setError(errorMessage);
-      return { error: new Error(errorMessage) };
+      throw error;
     }
   };
 
@@ -114,13 +120,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   return (
     <AuthContext.Provider 
       value={{ 
-        user, 
+        user,
+        session,
         signInWithGoogle, 
         signInWithEmail,
         signUpWithEmail,
         signOut, 
-        loading,
-        error
+        loading
       }}
     >
       {children}

@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "MailSort",
-  description: "Intelligent Email Classification",
+  title: "MailSort - AI Email Classifier",
+  description: "Automatically classify your emails with AI",
 };
 
 export default function RootLayout({
